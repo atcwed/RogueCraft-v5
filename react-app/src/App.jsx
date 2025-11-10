@@ -1,0 +1,1 @@
+export default function App(){return <div style={{padding:20}}>RogueCraft React scaffold. Put game in public or iframe.</div>}

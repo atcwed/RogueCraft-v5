@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>RogueCraft - Demo</title>
+<style>
+:root{--bg:#0b1020;--accent:#67e8f9}
+html,body{height:100%;margin:0;background:var(--bg);color:#e6eef6;font-family:Arial}
+#game{display:flex;gap:12px;padding:12px}
+canvas{background:#061026;border-radius:6px}
+.sidebar{width:280px}
+.slot{height:40px;background:rgba(255,255,255,0.02);margin:4px;border-radius:4px;display:flex;align-items:center;justify-content:center}
+.log{height:140px;overflow:auto;background:#06131f;padding:6px;border-radius:6px}
+</style>
+</head><body>
+<div id="game">
+  <div>
+    <div style="display:flex;justify-content:space-between;align-items:center"><h3>RogueCraft</h3><div>FPS: <span id="fps">0</span></div></div>
+    <canvas id="c" width="800" height="520"></canvas>
+  </div>
+  <div class="sidebar">
+    <div>Vida: <span id="hp">100</span></div>
+    <div>Ataque: <span id="atk">10</span></div>
+    <h4>Inventario</h4>
+    <div id="inv"></div>
+    <h4>Registro</h4>
+    <div class="log" id="log"></div>
+  </div>
+</div>
+<script>
+// Minimal playable demo (movement, enemies, items)
+const c=document.getElementById('c'),ctx=c.getContext('2d');
+const fpsEl=document.getElementById('fps'),hpEl=document.getElementById('hp'),atkEl=document.getElementById('atk'),invEl=document.getElementById('inv'),logEl=document.getElementById('log');
+let state={player:{x:30,y:20,hp:100,atk:10},entities:[],items:[],tile:16,w:60,h:40};
+const keys={};window.addEventListener('keydown',e=>keys[e.key.toLowerCase()]=true);window.addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
+function rand(a,b){return Math.floor(Math.random()*(b-a+1))+a;}
+for(let i=0;i<10;i++){state.entities.push({x:rand(2,57),y:rand(2,37),hp:20});}
+for(let i=0;i<6;i++){state.items.push({x:rand(2,57),y:rand(2,37),type: ['pocion','oro','espada'][rand(0,2)]});}
+function log(t){const d=document.createElement('div');d.textContent=t;logEl.prepend(d);}
+function update(dt){
+  let vx=0,vy=0; if(keys['w']||keys['arrowup'])vy=-1;if(keys['s']||keys['arrowdown'])vy=1;if(keys['a']||keys['arrowleft'])vx=-1;if(keys['d']||keys['arrowright'])vx=1;
+  const mag=Math.hypot(vx,vy); if(mag>0){vx/=mag;vy/=mag;}
+  state.player.x+=vx*0.12*dt; state.player.y+=vy*0.12*dt;
+  // attack
+  if(keys[' ']){
+    for(let e of state.entities){ const d=Math.hypot(e.x-state.player.x,e.y-state.player.y); if(d<1.5){ e.hp-=state.player.atk; log(' atacaste:'+state.player.atk); if(e.hp<=0){ state.entities.splice(state.entities.indexOf(e),1); log(' enemigo muerto'); } } }
+  }
+  // enemies move simple
+  for(let e of state.entities){ const dx=state.player.x-e.x,dy=state.player.y-e.y,d=Math.hypot(dx,dy); if(d>0.2){ e.x+=dx/d*0.5*dt; e.y+=dy/d*0.5*dt; } if(d<0.8){ state.player.hp-=0.02*dt; } }
+  // pickup
+  for(let i=state.items.length-1;i>=0;i--){ const it=state.items[i]; if(Math.hypot(it.x-state.player.x,it.y-state.player.y)<0.8){ if(it.type==='pocion') state.player.hp=Math.min(100,state.player.hp+30); else if(it.type==='oro') log('oro recogido'); else if(it.type==='espada'){ state.player.atk+=5; } state.items.splice(i,1); } }
+  if(state.player.hp<=0){ log('Has muerto. Respawn'); state.player.hp=100; state.entities=[]; for(let i=0;i<8;i++) state.entities.push({x:rand(2,57),y:rand(2,37),hp:20}); }
+}
+function draw(){
+  ctx.fillStyle='#061526'; ctx.fillRect(0,0,c.width,c.height);
+  const tile=state.tile;
+  // draw items
+  for(let it of state.items){ ctx.fillStyle= it.type==='pocion'? '#8b5cf6': (it.type==='oro'? '#fbbf24':'#94a3b8'); ctx.beginPath(); ctx.arc((it.x-0.5)*tile,(it.y-0.5)*tile,6,0,Math.PI*2); ctx.fill(); }
+  // draw entities
+  for(let e of state.entities){ ctx.fillStyle='#e06b6b'; ctx.beginPath(); ctx.arc(e.x*tile,e.y*tile,6,0,Math.PI*2); ctx.fill(); }
+  // player
+  ctx.fillStyle='#67e8f9'; ctx.beginPath(); ctx.arc(state.player.x*tile,state.player.y*tile,8,0,Math.PI*2); ctx.fill();
+}
+let last=performance.now(),cnt=0,lst=Date.now();
+function loop(now){ const dt=Math.min(60,(now-last)); last=now; update(dt); draw(); cnt++; if(Date.now()-lst>500){ fpsEl.textContent=Math.round((cnt*1000)/(Date.now()-lst)); cnt=0; lst=Date.now(); } hpEl.textContent=Math.round(state.player.hp); atkEl.textContent=state.player.atk; requestAnimationFrame(loop); }
+loop(performance.now());
+// setup inventory slots
+for(let i=0;i<8;i++){ const s=document.createElement('div'); s.className='slot'; s.textContent='Vacío'; invEl.appendChild(s); }
+</script>
+</body></html>
